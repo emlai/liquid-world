@@ -200,13 +200,20 @@ pub fn main() {
                 d.draw_fps(0, 0);
 
                 for (id, pos) in cursors.iter().enumerate() {
-                    d.draw_circle_lines(pos.x as i32, pos.y as i32, BALL_DIAMETER, colors[id]);
-                }
-                for pos in positions.iter() {
-                    d.draw_circle(
+                    d.draw_rectangle_lines(
                         pos.x as i32,
                         pos.y as i32,
-                        (VISUAL_DIAMETER / 2) as f32,
+                        BALL_DIAMETER as i32,
+                        BALL_DIAMETER as i32,
+                        colors[id],
+                    );
+                }
+                for pos in positions.iter() {
+                    d.draw_rectangle(
+                        pos.x as i32,
+                        pos.y as i32,
+                        (VISUAL_DIAMETER / 2) as i32,
+                        (VISUAL_DIAMETER / 2) as i32,
                         colors[owners[pos.id]],
                     );
                 }
