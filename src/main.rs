@@ -7,7 +7,7 @@ use sdl2::keyboard::Scancode::*;
 use sdl2::keyboard::{Keycode, Scancode};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 struct Keys {
     left: Scancode,
@@ -138,7 +138,10 @@ pub fn main() {
                         id: counter,
                     };
                     if cursors.len() == player_id {
-                        cursors.push(Pos { x: pos.x, y: pos.y });
+                        cursors.push(Pos {
+                            x: pos.x + 200.,
+                            y: pos.y + 200.,
+                        });
                     }
                     positions.insert(pos);
                     counter += 1;
@@ -148,7 +151,9 @@ pub fn main() {
             }
         }
         dbg!(positions.size());
+        dbg!(positions.size() / cursors.len());
 
+        let mut start = Instant::now();
         'main_loop: loop {
             canvas.set_draw_color(Color::RGB(0, 0, 0));
             canvas.clear();
@@ -188,7 +193,7 @@ pub fn main() {
                         let evasion_speed = if owners[a.id] != owners[b.id] {
                             0.1f32
                         } else {
-                            0.01f32
+                            0.05f32
                         };
                         let dx = (b.x - a.x) * evasion_speed;
                         let dy = (b.y - a.y) * evasion_speed;
@@ -219,6 +224,14 @@ pub fn main() {
                     VISUAL_DIAMETER,
                 ));
             }
+
+            let frame_duration = start.elapsed().as_secs_f32() * 1000.;
+            start = Instant::now();
+            // dbg!((1000. / frame_duration) as u32);
+            canvas.set_draw_color(Color::RGB(0, 255, 0));
+            _ = canvas.fill_rect(Rect::new(0, 0, (1000. / frame_duration) as u32, 10));
+            canvas.set_draw_color(Color::RGB(255, 0, 0));
+            _ = canvas.draw_rect(Rect::new(0, 0, 200, 10));
 
             canvas.present();
             let keyboard = event_pump.keyboard_state();
@@ -253,7 +266,7 @@ pub fn main() {
                 }
             }
 
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 120));
+            // ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 120));
         }
     }
 }
