@@ -1,19 +1,18 @@
+extern crate raylib;
 extern crate rstar;
-extern crate sdl2;
 
+use raylib::color::Color;
+use raylib::consts::KeyboardKey;
+use raylib::drawing::RaylibDraw;
 use rstar::{RTree, RTreeObject, AABB};
-use sdl2::event::Event;
-use sdl2::keyboard::Scancode::*;
-use sdl2::keyboard::{Keycode, Scancode};
-use sdl2::pixels::Color;
-use sdl2::rect::Rect;
 use std::time::Duration;
 
+#[derive(Copy, Clone)]
 struct Keys {
-    left: Scancode,
-    right: Scancode,
-    up: Scancode,
-    down: Scancode,
+    left: KeyboardKey,
+    right: KeyboardKey,
+    up: KeyboardKey,
+    down: KeyboardKey,
 }
 struct Pos {
     x: f32,
@@ -37,87 +36,82 @@ const BALL_DIAMETER: f32 = 8.;
 const VISUAL_DIAMETER: u32 = 6;
 
 pub fn main() {
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
     let window_width = 1600;
     let window_height = 900;
 
-    let window = video_subsystem
-        .window("rust-sdl2 demo", window_width, window_height)
-        .position_centered()
-        .build()
-        .unwrap();
+    let (mut rl, thread) = raylib::init()
+        .size(window_width, window_height)
+        .title("Hello, World")
+        .build();
+    rl.set_exit_key(None);
+    rl.set_target_fps(120);
 
-    let mut canvas = window.into_canvas().build().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
     let player_keys = vec![
         Keys {
-            left: A,
-            right: D,
-            up: W,
-            down: S,
+            left: KeyboardKey::KEY_A,
+            right: KeyboardKey::KEY_D,
+            up: KeyboardKey::KEY_W,
+            down: KeyboardKey::KEY_S,
         },
         Keys {
-            left: F,
-            right: H,
-            up: T,
-            down: G,
+            left: KeyboardKey::KEY_F,
+            right: KeyboardKey::KEY_H,
+            up: KeyboardKey::KEY_T,
+            down: KeyboardKey::KEY_G,
         },
         Keys {
-            left: J,
-            right: L,
-            up: I,
-            down: K,
+            left: KeyboardKey::KEY_J,
+            right: KeyboardKey::KEY_L,
+            up: KeyboardKey::KEY_I,
+            down: KeyboardKey::KEY_K,
         },
         Keys {
-            left: Semicolon,
-            right: Backslash,
-            up: LeftBracket,
-            down: Apostrophe,
+            left: KeyboardKey::KEY_SEMICOLON,
+            right: KeyboardKey::KEY_BACKSLASH,
+            up: KeyboardKey::KEY_LEFT_BRACKET,
+            down: KeyboardKey::KEY_APOSTROPHE,
         },
         Keys {
-            left: A,
-            right: D,
-            up: W,
-            down: S,
+            left: KeyboardKey::KEY_A,
+            right: KeyboardKey::KEY_D,
+            up: KeyboardKey::KEY_W,
+            down: KeyboardKey::KEY_S,
         },
         Keys {
-            left: F,
-            right: H,
-            up: T,
-            down: G,
+            left: KeyboardKey::KEY_F,
+            right: KeyboardKey::KEY_H,
+            up: KeyboardKey::KEY_T,
+            down: KeyboardKey::KEY_G,
         },
         Keys {
-            left: J,
-            right: L,
-            up: I,
-            down: K,
+            left: KeyboardKey::KEY_J,
+            right: KeyboardKey::KEY_L,
+            up: KeyboardKey::KEY_I,
+            down: KeyboardKey::KEY_K,
         },
         Keys {
-            left: Semicolon,
-            right: Backslash,
-            up: LeftBracket,
-            down: Apostrophe,
+            left: KeyboardKey::KEY_SEMICOLON,
+            right: KeyboardKey::KEY_BACKSLASH,
+            up: KeyboardKey::KEY_LEFT_BRACKET,
+            down: KeyboardKey::KEY_APOSTROPHE,
         },
     ];
     let mut colors = Vec::new();
-    colors.push(Color::RGB(255, 0, 0));
-    colors.push(Color::RGB(0, 255, 0));
-    colors.push(Color::RGB(0, 0, 255));
-    colors.push(Color::RGB(0, 255, 255));
-    colors.push(Color::RGB(255, 0, 255));
-    colors.push(Color::RGB(255, 255, 0));
-    colors.push(Color::RGB(255, 255, 255));
-    colors.push(Color::RGB(128, 128, 128));
+    colors.push(Color::new(255, 0, 0, 255));
+    colors.push(Color::new(0, 255, 0, 255));
+    colors.push(Color::new(0, 0, 255, 255));
+    colors.push(Color::new(0, 255, 255, 255));
+    colors.push(Color::new(255, 0, 255, 255));
+    colors.push(Color::new(255, 255, 0, 255));
+    colors.push(Color::new(255, 255, 255, 255));
+    colors.push(Color::new(128, 128, 128, 255));
 
-    'restart: loop {
+    'outer_loop: while !rl.window_should_close() {
         let mut cursors = Vec::new();
         let mut positions = RTree::<RTreePos>::new();
         let mut velocities = Vec::new();
         let mut owners = Vec::new();
-        // let mut collisions = Vec::new();
 
-        let spacing = 10;
         let mut counter = 0;
         let start_positions = [
             [0, 0],
@@ -130,15 +124,18 @@ pub fn main() {
             [3, 1],
         ];
         for (player_id, start_pos) in start_positions.iter().enumerate() {
-            for x in (0..(window_width / 5)).step_by(spacing) {
-                for y in (0..(window_height / 3)).step_by(spacing) {
+            for x in (0..(window_width / 5)).step_by(10) {
+                for y in (0..(window_height / 3)).step_by(10) {
                     let pos = RTreePos {
                         x: (start_pos[0] as f32) * (window_width / 4) as f32 + x as f32,
                         y: (start_pos[1] as f32) * (window_height / 2) as f32 + y as f32,
                         id: counter,
                     };
                     if cursors.len() == player_id {
-                        cursors.push(Pos { x: pos.x, y: pos.y });
+                        cursors.push(Pos {
+                            x: pos.x + 200.,
+                            y: pos.y + 200.,
+                        });
                     }
                     positions.insert(pos);
                     counter += 1;
@@ -148,10 +145,9 @@ pub fn main() {
             }
         }
         dbg!(positions.size());
+        dbg!(positions.size() / cursors.len());
 
         'main_loop: loop {
-            canvas.set_draw_color(Color::RGB(0, 0, 0));
-            canvas.clear();
             for pos in positions.iter() {
                 let cursor_follow_speed = 0.001f32;
                 velocities[pos.id].x += (cursors[owners[pos.id]].x - pos.x) * cursor_follow_speed;
@@ -172,13 +168,11 @@ pub fn main() {
                     .collect(),
             );
 
-            let mut counter = 0;
             for a in positions.iter() {
                 for b in positions.locate_in_envelope(&AABB::from_corners(
                     [a.x - BALL_DIAMETER, a.y - BALL_DIAMETER],
                     [a.x + BALL_DIAMETER, a.y + BALL_DIAMETER],
                 )) {
-                    counter += 1;
                     if a.id == b.id {
                         continue;
                     }
@@ -199,61 +193,49 @@ pub fn main() {
                     }
                 }
             }
-            // dbg!(counter);
 
-            for (id, pos) in cursors.iter().enumerate() {
-                canvas.set_draw_color(colors[owners[id]]);
-                _ = canvas.draw_rect(Rect::new(
-                    pos.x as i32,
-                    pos.y as i32,
-                    (BALL_DIAMETER * 2.) as u32,
-                    (BALL_DIAMETER * 2.) as u32,
-                ));
-            }
-            for pos in positions.iter() {
-                canvas.set_draw_color(colors[owners[pos.id]]);
-                _ = canvas.fill_rect(Rect::new(
-                    pos.x as i32,
-                    pos.y as i32,
-                    VISUAL_DIAMETER,
-                    VISUAL_DIAMETER,
-                ));
+            {
+                let mut d = rl.begin_drawing(&thread);
+                d.clear_background(Color::BLACK);
+                d.draw_fps(0, 0);
+
+                for (id, pos) in cursors.iter().enumerate() {
+                    d.draw_circle_lines(pos.x as i32, pos.y as i32, BALL_DIAMETER, colors[id]);
+                }
+                for pos in positions.iter() {
+                    d.draw_circle(
+                        pos.x as i32,
+                        pos.y as i32,
+                        (VISUAL_DIAMETER / 2) as f32,
+                        colors[owners[pos.id]],
+                    );
+                }
             }
 
-            canvas.present();
-            let keyboard = event_pump.keyboard_state();
             let cursor_speed = 5f32;
             for (id, keys) in player_keys.iter().enumerate() {
-                if keyboard.is_scancode_pressed(keys.left) {
+                if rl.is_key_down(keys.left) {
                     cursors[id].x -= cursor_speed;
                 }
-                if keyboard.is_scancode_pressed(keys.right) {
+                if rl.is_key_down(keys.right) {
                     cursors[id].x += cursor_speed;
                 }
-                if keyboard.is_scancode_pressed(keys.up) {
+                if rl.is_key_down(keys.up) {
                     cursors[id].y -= cursor_speed;
                 }
-                if keyboard.is_scancode_pressed(keys.down) {
+                if rl.is_key_down(keys.down) {
                     cursors[id].y += cursor_speed;
                 }
             }
 
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'restart,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Space),
-                        ..
-                    } => break 'main_loop,
-                    _ => {}
-                }
+            if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
+                break 'outer_loop;
+            }
+            if rl.is_key_pressed(KeyboardKey::KEY_SPACE) {
+                break 'main_loop;
             }
 
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 120));
+            // ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 120));
         }
     }
 }
